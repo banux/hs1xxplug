@@ -135,3 +135,25 @@ func (p *Hs1xxPlug) GetPowerConsumption() (float64, error) {
 		return 0, err
 	}
 }
+
+/**
+Returns the alias of the device
+Created by comzine
+*/
+func (p *Hs1xxPlug) GetAliasName() (string, error) {
+	m := make(map[string]interface{})
+	s, err := p.SystemInfo()
+	if err != nil {
+		return "", err
+	}
+	err = json.Unmarshal([]byte(s), &m)
+	if err != nil {
+		return "", err
+	}
+	//fmt.Println(m)
+	if alias, ok :=m["system"].(map[string]interface {})["get_sysinfo"].(map[string]interface {})["alias"].(string); ok {
+		return alias, err
+	} else {
+		return "", err
+	}
+}
