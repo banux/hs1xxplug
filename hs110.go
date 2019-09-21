@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"time"
 )
@@ -98,7 +97,15 @@ func send(ip string, payload []byte) (data []byte, err error) {
 		return
 	}
 	_, err = conn.Write(payload)
-	data, err = ioutil.ReadAll(conn)
+
+	/*
+	Changed by comzine
+	Thanks to mikemrm (https://github.com/mikemrm/Go-TPLink-SmartPlug)
+	 */
+	buff := make([]byte, 2048)
+	n, err := conn.Read(buff)
+	data = buff[:n]
+
 	if err != nil {
 		fmt.Println("Cannot read data from plug:", err)
 	}
