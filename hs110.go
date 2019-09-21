@@ -3,6 +3,7 @@ package hs1xxplug
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"net"
 	"time"
@@ -111,4 +112,26 @@ func send(ip string, payload []byte) (data []byte, err error) {
 	}
 	return
 
+}
+
+/**
+Returns the current power consumption of the device
+Created by comzine
+ */
+func (p *Hs1xxPlug) GetPowerConsumption() (float64, error) {
+	m := make(map[string]interface{})
+	s, err := p.MeterInfo()
+	if err != nil {
+		return 0, err
+	}
+	err = json.Unmarshal([]byte(s), &m)
+	if err != nil {
+		return 0, err
+	}
+	//fmt.Println(m)
+	if power, ok :=m["emeter"].(map[string]interface {})["get_realtime"].(map[string]interface {})["power_mw"].(float64); ok {
+		return power, err
+	} else {
+		return 0, err
+	}
 }
