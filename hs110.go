@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"time"
 )
@@ -89,6 +88,22 @@ func decrypt(ciphertext []byte) string {
 	return string(ciphertext)
 }
 
+
+func readExactly(conn net.Conn, data []byte) (err error) {
+	for rd:=0; rd<len(data); {
+		sz,err := conn.Read(data[rd:])
+		if err != nil {
+			 return err
+		}
+		rd += sz
+		if sz == 0 {
+			err = fmt.Errorf("read 0 bytes after %d/%d", rd, len(data))
+			return err
+		}
+	}
+	return
+}
+
 func send(ip string, payload []byte) (data []byte, err error) {
 	// 10 second timeout
 	conn, err := net.DialTimeout("tcp", ip+":9999", time.Duration(10)*time.Second)
@@ -98,10 +113,21 @@ func send(ip string, payload []byte) (data []byte, err error) {
 		return
 	}
 	_, err = conn.Write(payload)
-	data, err = ioutil.ReadAll(conn)
+	// try to read just the right amount of data...
+	data = make([]byte, 2048)
+	err = readExactly(conn, data[0:4])
 	if err != nil {
-		fmt.Println("Cannot read data from plug:", err)
+		fmt.Println("Cannot read data (size) from plug:", err)
+		return
 	}
-	return
+	size := binary.BigEndian.Uint32(data[0:4])
+	data = data[0:(4+size)]
+	err = readExactly(conn, data[4:])
+        if err != nil {
+                fmt.Println("Cannot read data (",size," bytes) from plug:", err)
+        }
+	// and don't leave the connection open!
+	_ = conn.Close()
 
+	return
 }
