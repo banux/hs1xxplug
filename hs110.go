@@ -3,6 +3,7 @@ package hs1xxplug
 import (
 	"bytes"
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"net"
 	"time"
@@ -113,9 +114,15 @@ func send(ip string, payload []byte) (data []byte, err error) {
 		return
 	}
 	_, err = conn.Write(payload)
-	// try to read just the right amount of data...
-	data = make([]byte, 2048)
-	err = readExactly(conn, data[0:4])
+
+	/*
+	Changed by comzine
+	Thanks to mikemrm (https://github.com/mikemrm/Go-TPLink-SmartPlug)
+	 */
+	buff := make([]byte, 2048)
+	n, err := conn.Read(buff)
+	data = buff[:n]
+
 	if err != nil {
 		fmt.Println("Cannot read data (size) from plug:", err)
 		return
@@ -130,4 +137,48 @@ func send(ip string, payload []byte) (data []byte, err error) {
 	_ = conn.Close()
 
 	return
+}
+
+/**
+Returns the current power consumption of the device
+Created by comzine
+ */
+func (p *Hs1xxPlug) GetPowerConsumption() (float64, error) {
+	m := make(map[string]interface{})
+	s, err := p.MeterInfo()
+	if err != nil {
+		return 0, err
+	}
+	err = json.Unmarshal([]byte(s), &m)
+	if err != nil {
+		return 0, err
+	}
+	//fmt.Println(m)
+	if power, ok :=m["emeter"].(map[string]interface {})["get_realtime"].(map[string]interface {})["power_mw"].(float64); ok {
+		return power, err
+	} else {
+		return 0, err
+	}
+}
+
+/**
+Returns the alias of the device
+Created by comzine
+*/
+func (p *Hs1xxPlug) GetAliasName() (string, error) {
+	m := make(map[string]interface{})
+	s, err := p.SystemInfo()
+	if err != nil {
+		return "", err
+	}
+	err = json.Unmarshal([]byte(s), &m)
+	if err != nil {
+		return "", err
+	}
+	//fmt.Println(m)
+	if alias, ok :=m["system"].(map[string]interface {})["get_sysinfo"].(map[string]interface {})["alias"].(string); ok {
+		return alias, err
+	} else {
+		return "", err
+	}
 }
